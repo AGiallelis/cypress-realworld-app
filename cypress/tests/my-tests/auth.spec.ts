@@ -37,16 +37,12 @@ describe('Authentication', () => {
     cy.get('[data-test="sidenav-username"]').should('not.exist')
   })
 
-  it.only('AUTH-004: Login with empty username', () => {
+  it('AUTH-004: Login with empty username', () => {
     cy.visit("/signin")
-    cy.get('#username').first().focus()
+    cy.get('#username').focus()
     cy.get('[data-test="signin-password"]').type('s3cret') 
     cy.get('#username-helper-text').should('be.visible').and('contain','Username is required')
-    // cy.get('[data-test="signin-submit"]').click()
-    // cy.url().should('include', '/signin')
-    // cy.get('[data-test="signin-error"]').should('be.visible').and('contain','Username or password is invalid')
-    // cy.get('[data-test="signin-username"]').should('be.visible').and('have.value','')
-    // cy.get('[data-test="signin-password"]').should('be.visible').and('have.value','')
-    // cy.get('[data-test="sidenav-username"]').should('not.exist')
+    cy.get('[data-test="signin-submit"]').should('be.disabled')
+    cy.url().should('include', '/signin')  
   })
 })

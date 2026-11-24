@@ -55,18 +55,51 @@ My tests live in their own folder so they stay separate from the example tests t
 |----------|--------------------------------|-----------------------|----------------|
 | AUTH-001 | Login with valid credentials   | Positive / Functional | ✅ Automated   |
 | AUTH-002 | Login with invalid username    | Negative / Functional | ✅ Automated   |
-| AUTH-003 | Login with invalid password    | Negative / Functional | ✅ Automated   | 
-| AUTH-004 | Login with empty username      | Validation            | 🚧 In progress     |
-| AUTH-005 | Login with empty password      | Validation            | ⏳ Planned     |
-| AUTH-006 | Login with both fields empty   | Validation            | ⏳ Planned     |
+| AUTH-003 | Login with invalid password    | Negative / Functional | ✅ Automated   |
+| AUTH-004 | Login with empty username      | Validation            | ✅ Automated   |
+| AUTH-005 | Login with empty password      | Validation            | ❌ Failed – [BUG-001](#defects-found) (test skipped) |
+| AUTH-006 | Login with both fields empty   | Validation            | 🚧 In progress |
 | AUTH-007 | Logout from application        | Positive / Functional | ⏳ Planned     |
 | AUTH-008 | Open protected page after logout | Security            | ⏳ Planned     |
 | AUTH-009 | Refresh page after login       | Session               | ⏳ Planned     |
 | AUTH-010 | Verify password field masking  | UI / Security         | ⏳ Planned     |
 
+### Extra tests (not in the original workbook)
+
+I added these boundary tests after noticing the rule *"Password must contain at least 4 characters"*. They use their own IDs so they don't get mixed up with the workbook's test case IDs.
+
+| Test ID        | Scenario                                      | Type     | Status       |
+|----------------|-----------------------------------------------|----------|--------------|
+| AUTH-EXTRA-001 | Password with 3 characters is rejected        | Boundary | ✅ Automated |
+| AUTH-EXTRA-002 | Password with exactly 4 characters is accepted | Boundary | ✅ Automated |
+
+## Defects found
+
+### BUG-001: No validation message shown for empty password on Sign In page
+
+| Field       | Details |
+|-------------|---------|
+| Test case   | AUTH-005 |
+| Severity    | Low (no functional or security impact; the Sign In button stays disabled) |
+| Environment | Local (`http://localhost:3000`) |
+
+**Steps to reproduce**
+1. Open `http://localhost:3000/signin`
+2. Enter `Heath93` in the Username field
+3. Click inside the Password field
+4. Without typing anything, click outside the Password field
+
+**Expected result:** a required-field validation message is shown below the Password field, consistent with the Username field ("Username is required").
+
+**Actual result:** no validation message is shown below the Password field. The Sign In button is disabled with no explanation to the user.
+
+**Automation:** reproduced by test AUTH-005, which is marked `it.skip` with a reference to BUG-001 until the defect is fixed. The test asserts the *expected* behavior, so it was not changed to pass.
+
 ## Approach
 
-**Stable selectors.** I select elements with `data-test` attributes (e.g. `[data-test="signin-username"]`) instead of CSS classes, IDs or HTML structure. These attributes exist only for testing, so the tests don't break when the design changes. I also keep selectors as simple as possible (no `> div` chains).
+**Stable selectors.** I prefer `data-test` attributes (e.g. `[data-test="signin-username"]`) over CSS classes or HTML structure. These attributes exist only for testing, so the tests don't break when the design changes. I also keep selectors as simple as possible (no `> div` chains).
+
+**Know which element you are selecting.** In this app the `data-test` attribute of a form field sits on the wrapper `<div>`, not on the `<input>` itself. `.type()` still works (Cypress clicks the wrapper, which focuses the input), but `.focus()` fails on a `<div>`, and `have.value` on a `<div>` is always empty. For these cases I target the input directly by its stable id (e.g. `#username`, `#password`), and the validation messages by their ids (e.g. `#username-helper-text`).
 
 **Every test must be able to fail.** For each assertion I ask: *"If the application were broken, would this test turn red?"* I verify this by breaking the test on purpose. For example, I run the valid-login test with a wrong password and confirm that it fails. This is how I caught an early assertion (`cy.url().should('include', '/')`) that always passed, because every URL contains `/`.
 
@@ -79,6 +112,12 @@ My tests live in their own folder so they stay separate from the example tests t
 - `not.exist`: the element is not in the page at all
 - `contain` checks text content, while `have.value` checks what is typed in an input field
 
+**Disabled is not the same as "looks grey".** For validation tests I don't click the Sign In button. Cypress cannot click a disabled element, and the real requirement is that the user *cannot* submit. So I assert `be.disabled`, plus the exact validation message below the field.
+
+**Boundary Value Analysis.** Bugs often hide exactly at limits (e.g. `> 4` instead of `>= 4`). For the 4-character password rule I test both sides of the boundary: 3 characters must be rejected, and exactly 4 must be accepted.
+
+**Tests describe expected behavior, not current behavior.** When the app didn't match the workbook (AUTH-005), I didn't change the test to make it pass. I kept the expected assertion, logged a defect, and skipped the test with a comment that references the bug.
+
 **Security awareness.** AUTH-002 (wrong username) and AUTH-003 (wrong password) both expect the **same** generic message: *"Username or password is invalid"*. A different message for each case would let an attacker discover which accounts exist (*user enumeration*), so the identical message is itself a security check.
 
 ## What I learned
@@ -88,10 +127,17 @@ My tests live in their own folder so they stay separate from the example tests t
 - How to read glob patterns such as `cypress/tests/**/*.spec.{js,jsx,ts,tsx}`
 - That a passing test isn't automatically a useful test, and how to test my tests
 - How to troubleshoot the local environment (e.g. a port already in use)
+- How to inspect the DOM to find the right element, and why the wrapper vs. input difference matters
+- How to test validation with `.focus()` / `.blur()`, `be.disabled` and helper-text messages
+- Boundary Value Analysis, and keeping test IDs traceable to the original test cases
+- How to write a clear, reproducible bug report, and the difference between severity and priority
+- Useful runner tools: `it.only` to focus on one test while working, `it.skip` to park a test with a reason
 
 ## Next steps
 
-- Finish AUTH-003 and the validation tests AUTH-004 to AUTH-006
+- Finish AUTH-006
+- Review the `have.value` assertions in AUTH-002/003 so they target the `<input>` elements (`#username`, `#password`)
+- Re-enable AUTH-005 once BUG-001 is fixed
 - Create a custom command `cy.login()` to remove repeated login steps
 - Use `beforeEach` for shared setup
 - Continue with Registration, Money Transfers and the other modules from the workbook

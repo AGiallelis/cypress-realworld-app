@@ -55,8 +55,8 @@ My tests live in their own folder so they stay separate from the example tests t
 |----------|--------------------------------|-----------------------|----------------|
 | AUTH-001 | Login with valid credentials   | Positive / Functional | ✅ Automated   |
 | AUTH-002 | Login with invalid username    | Negative / Functional | ✅ Automated   |
-| AUTH-003 | Login with invalid password    | Negative / Functional | 🚧 In progress |
-| AUTH-004 | Login with empty username      | Validation            | ⏳ Planned     |
+| AUTH-003 | Login with invalid password    | Negative / Functional | ✅ Automated   | 
+| AUTH-004 | Login with empty username      | Validation            | 🚧 In progress     |
 | AUTH-005 | Login with empty password      | Validation            | ⏳ Planned     |
 | AUTH-006 | Login with both fields empty   | Validation            | ⏳ Planned     |
 | AUTH-007 | Logout from application        | Positive / Functional | ⏳ Planned     |

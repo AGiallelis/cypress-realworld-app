@@ -119,4 +119,8 @@ describe('Authentication', () => {
     cy.url().should('not.include', '/signin')
     cy.get('[data-test="sidenav-username"]').should('be.visible').and('contain', '@Heath93')
   })
+
+  it('AUTH-010: Password masking', () => {
+    cy.get('#password').type("test").should('have.attr', 'type', 'password')
+  })
 })

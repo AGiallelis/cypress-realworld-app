@@ -112,4 +112,11 @@ describe('Authentication', () => {
     })
   })
 
+  it('AUTH-009: Refresh page after successful login', () => {
+    cy.login('Heath93', 's3cret')
+    cy.url().should('not.include', '/signin')
+    cy.reload(true)
+    cy.url().should('not.include', '/signin')
+    cy.get('[data-test="sidenav-username"]').should('be.visible').and('contain', '@Heath93')
+  })
 })

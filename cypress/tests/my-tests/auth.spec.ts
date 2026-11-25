@@ -50,8 +50,7 @@ describe('Authentication', () => {
   })
 
   it('AUTH-EXTRA-002: Password with exactly 4 characters is accepted',() => {
-    cy.get('[data-test="signin-username"]').type("Heath93")
-    cy.get('[data-test="signin-password"]').type('test') 
+    cy.login('Heath93','test')
     cy.get('[data-test="signin-submit"]').click()
     cy.get('[data-test="signin-error"]').should('be.visible').and('contain','Username or password is invalid')
     cy.url().should('include', '/signin')  
@@ -73,5 +72,16 @@ describe('Authentication', () => {
     cy.get('#password').focus().blur()
     cy.get('[data-test="signin-submit"]').should('be.disabled')
     cy.get('#username-helper-text').should('be.visible').and('contain','Username is required')
+  })
+
+  it('AUTH-007: Logout from application', () => {
+    cy.login('Heath93', 's3cret')
+    cy.url().should('not.include', '/signin')
+    cy.get('[data-test="sidenav-username"]').should('be.visible').and('contain', '@Heath93')
+    cy.get('[data-test="sidenav-signout"]').click()
+    cy.url().should('include', '/signin')
+    cy.get("#username").should('be.visible')
+    cy.get('#password').should('be.visible')
+    cy.get('[data-test="sidenav-username"]').should('not.exist')
   })
 })

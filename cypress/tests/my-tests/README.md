@@ -58,9 +58,9 @@ My tests live in their own folder so they stay separate from the example tests t
 | AUTH-003 | Login with invalid password    | Negative / Functional | ✅ Automated   |
 | AUTH-004 | Login with empty username      | Validation            | ✅ Automated   |
 | AUTH-005 | Login with empty password      | Validation            | ❌ Failed – [BUG-001](#defects-found) (test skipped) |
-| AUTH-006 | Login with both fields empty   | Validation            | 🚧 In progress |
-| AUTH-007 | Logout from application        | Positive / Functional | ⏳ Planned     |
-| AUTH-008 | Open protected page after logout | Security            | ⏳ Planned     |
+| AUTH-006 | Login with both fields empty   | Validation            | ✅ Automated (password message check pending [BUG-001](#defects-found)) |
+| AUTH-007 | Logout from application        | Positive / Functional | ✅ Automated   |
+| AUTH-008 | Open protected page after logout | Security            | 🚧 In progress |
 | AUTH-009 | Refresh page after login       | Session               | ⏳ Planned     |
 | AUTH-010 | Verify password field masking  | UI / Security         | ⏳ Planned     |
 
@@ -118,6 +118,12 @@ I added these boundary tests after noticing the rule *"Password must contain at 
 
 **Tests describe expected behavior, not current behavior.** When the app didn't match the workbook (AUTH-005), I didn't change the test to make it pass. I kept the expected assertion, logged a defect, and skipped the test with a comment that references the bug.
 
+**Reuse the team's commands, and only for setup.** Before writing a custom command I check `cypress/support/commands.ts`. The team already has `cy.login()` and `cy.getBySel()`, so I reuse them instead of creating duplicates (a second `login` command would also overwrite theirs). I use `cy.login()` only where login is a setup step, such as AUTH-007 (Logout). Where the login form itself is under test (AUTH-001 to AUTH-006), I keep the steps visible in the test. `cy.login()` waits for the login API response but doesn't assert success, so my tests still check it.
+
+**Shared setup with `beforeEach`.** Every authentication test starts on `/signin`, so `cy.visit('/signin')` lives in a `beforeEach` instead of being repeated in every test.
+
+**Keep known gaps visible.** AUTH-006 checks everything that works today (username message, disabled button). The password-message assertion is left out with a `TODO` comment that references BUG-001, so it isn't forgotten.
+
 **Security awareness.** AUTH-002 (wrong username) and AUTH-003 (wrong password) both expect the **same** generic message: *"Username or password is invalid"*. A different message for each case would let an attacker discover which accounts exist (*user enumeration*), so the identical message is itself a security check.
 
 ## What I learned
@@ -131,14 +137,16 @@ I added these boundary tests after noticing the rule *"Password must contain at 
 - How to test validation with `.focus()` / `.blur()`, `be.disabled` and helper-text messages
 - Boundary Value Analysis, and keeping test IDs traceable to the original test cases
 - How to write a clear, reproducible bug report, and the difference between severity and priority
+- How to read existing team code (custom commands, `cy.intercept` / `cy.wait`) before writing my own
+- That a click alone proves nothing: after an action (e.g. logout), the test must check the result from both sides (sign-in form visible **and** logged-in elements gone)
 - Useful runner tools: `it.only` to focus on one test while working, `it.skip` to park a test with a reason
 
 ## Next steps
 
-- Finish AUTH-006
+- Finish AUTH-008 (protected page after logout), then AUTH-009 and AUTH-010
 - Review the `have.value` assertions in AUTH-002/003 so they target the `<input>` elements (`#username`, `#password`)
 - Re-enable AUTH-005 once BUG-001 is fixed
-- Create a custom command `cy.login()` to remove repeated login steps
+- Reuse the team's existing custom commands from `cypress/support/commands.ts` instead of duplicating them: `cy.login(username, password)` for tests where login is only the setup step (e.g. AUTH-007 Logout), and `cy.getBySel(value)` for `data-test` selectors. I checked the existing code before writing my own. `cy.login()` already waits for the login API response (`cy.intercept` + `cy.wait`), but it does not assert that login succeeded, so my tests still do that themselves.
 - Use `beforeEach` for shared setup
 - Continue with Registration, Money Transfers and the other modules from the workbook
 - Use `cy.intercept()` and `cy.request()` for API-level checks

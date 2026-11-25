@@ -2,6 +2,15 @@ import { notEqual } from "assert"
 
 describe('Authentication', () => {
 
+  const protectedUrls = [
+  '/user/settings',
+  '/bankaccounts',
+  '/notifications',
+  '/transaction/new',
+  '/contacts',
+  '/personal'
+  ]
+
   beforeEach(()=>{
         cy.visit('/signin')
   })
@@ -84,4 +93,23 @@ describe('Authentication', () => {
     cy.get('#password').should('be.visible')
     cy.get('[data-test="sidenav-username"]').should('not.exist')
   })
+
+  protectedUrls.forEach((url) => {
+    it(`AUTH-008: ${url} is not accessible after logout`, () => {
+      cy.login('Heath93', 's3cret')
+      cy.url().should('not.include', '/signin')
+      cy.get('[data-test="sidenav-username"]').should('be.visible').and('contain', '@Heath93')
+      cy.get('[data-test="sidenav-signout"]').click()
+      cy.url().should('include', '/signin')
+      cy.get("#username").should('be.visible')
+      cy.get('#password').should('be.visible')
+      cy.get('[data-test="sidenav-username"]').should('not.exist')
+      cy.visit(url)
+      cy.url().should('include', '/signin')
+      cy.get("#username").should('be.visible')
+      cy.get('#password').should('be.visible')
+      cy.get('[data-test="sidenav-username"]').should('not.exist')  
+    })
+  })
+
 })

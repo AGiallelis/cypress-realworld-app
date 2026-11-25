@@ -66,4 +66,12 @@ describe('Authentication', () => {
     cy.get('#password-helper-text').should('be.visible')
     cy.url().should('include', '/signin')  
   })
+
+  // TODO: add password helper-text assertion when BUG-001 is fixed
+  it('AUTH-006: Login with both fields empty', () => {
+    cy.get("#username").focus().blur()
+    cy.get('#password').focus().blur()
+    cy.get('[data-test="signin-submit"]').should('be.disabled')
+    cy.get('#username-helper-text').should('be.visible').and('contain','Username is required')
+  })
 })

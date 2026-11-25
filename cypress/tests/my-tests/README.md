@@ -1,5 +1,7 @@
 # Cypress E2E Automation – Real World App
 
+**Status:** Authentication module complete (10/10 workbook cases covered: 9 automated, 1 failing on [BUG-001](#defects-found)), plus 2 extra boundary tests.
+
 This folder contains my automated end-to-end tests for the **Cypress Real World App (RWA)**.
 The goal of this project is to convert manual QA test cases into reliable, maintainable Cypress tests, while learning Cypress and good test automation practices along the way.
 
@@ -60,9 +62,9 @@ My tests live in their own folder so they stay separate from the example tests t
 | AUTH-005 | Login with empty password      | Validation            | ❌ Failed – [BUG-001](#defects-found) (test skipped) |
 | AUTH-006 | Login with both fields empty   | Validation            | ✅ Automated (password message check pending [BUG-001](#defects-found)) |
 | AUTH-007 | Logout from application        | Positive / Functional | ✅ Automated   |
-| AUTH-008 | Open protected page after logout | Security            | 🚧 In progress |
-| AUTH-009 | Refresh page after login       | Session               | ⏳ Planned     |
-| AUTH-010 | Verify password field masking  | UI / Security         | ⏳ Planned     |
+| AUTH-008 | Open protected page after logout | Security            | ✅ Automated (6 URLs, data-driven) |
+| AUTH-009 | Refresh page after login       | Session               | ✅ Automated   |
+| AUTH-010 | Verify password field masking  | UI / Security         | ✅ Automated   |
 
 ### Extra tests (not in the original workbook)
 
@@ -124,6 +126,18 @@ I added these boundary tests after noticing the rule *"Password must contain at 
 
 **Keep known gaps visible.** AUTH-006 checks everything that works today (username message, disabled button). The password-message assertion is left out with a `TODO` comment that references BUG-001, so it isn't forgotten.
 
+**Data-driven tests.** AUTH-008 checks 6 protected URLs (`/user/settings`, `/bankaccounts`, `/notifications`, `/transaction/new`, `/contacts`, `/personal`). The URLs live in one array, and `forEach` generates a separate test for each one, so the report shows exactly which URL failed, and a new page only needs one new line in the list.
+
+**Check the result, not the status code.** This is a single-page app: the server returns status 200 for every route, and the redirect to `/signin` happens in the browser. So `failOnStatusCode` proves nothing about access. After `cy.visit(url)` the test checks the URL, the sign-in form, and that no logged-in element exists.
+
+**Know which assertion caught the failure.** When I break a test on purpose, I check *which line* turns red, not only *whether* it does. In AUTH-008 the first experiment failed on a check before `cy.visit`, which proved nothing about the protected URL. Only after removing the whole logout block did it fail on the redirect check after the visit, which is the real proof.
+
+**Breaking a session on purpose.** AUTH-009 reloads the page after login (`cy.reload(true)`, which bypasses the cache) and checks the user is still signed in. To prove the test can fail, I ran `cy.clearCookies()` before the reload: the session was lost, the app sent me back to `/signin`, and the test turned red.
+
+**Test the cause, not the pixels.** Cypress reads page data, not what is drawn on screen: after typing, `have.value` on the password field returns the real password, not dots. So AUTH-010 checks the cause of the masking, `type="password"` on the input. As a sanity check, the same assertion on the username field fails, because it has `type="text"`.
+
+**Automation doesn't replace manual checks.** Cypress assertions retry until they pass, so they check the final state. If protected data flashed for half a second before the redirect, the test would likely still pass. I confirmed manually that nothing is shown, not even briefly.
+
 **Security awareness.** AUTH-002 (wrong username) and AUTH-003 (wrong password) both expect the **same** generic message: *"Username or password is invalid"*. A different message for each case would let an attacker discover which accounts exist (*user enumeration*), so the identical message is itself a security check.
 
 ## What I learned
@@ -139,11 +153,13 @@ I added these boundary tests after noticing the rule *"Password must contain at 
 - How to write a clear, reproducible bug report, and the difference between severity and priority
 - How to read existing team code (custom commands, `cy.intercept` / `cy.wait`) before writing my own
 - That a click alone proves nothing: after an action (e.g. logout), the test must check the result from both sides (sign-in form visible **and** logged-in elements gone)
+- Using the Cypress docs to find commands on my own (e.g. `cy.reload()`)
+- Session checks with `cy.reload()` and `cy.clearCookies()`, and attribute checks with `have.attr`
 - Useful runner tools: `it.only` to focus on one test while working, `it.skip` to park a test with a reason
 
 ## Next steps
 
-- Finish AUTH-008 (protected page after logout), then AUTH-009 and AUTH-010
+- Start the next module from the workbook: Registration (REG-001 to REG-008)
 - Review the `have.value` assertions in AUTH-002/003 so they target the `<input>` elements (`#username`, `#password`)
 - Re-enable AUTH-005 once BUG-001 is fixed
 - Reuse the team's existing custom commands from `cypress/support/commands.ts` instead of duplicating them: `cy.login(username, password)` for tests where login is only the setup step (e.g. AUTH-007 Logout), and `cy.getBySel(value)` for `data-test` selectors. I checked the existing code before writing my own. `cy.login()` already waits for the login API response (`cy.intercept` + `cy.wait`), but it does not assert that login succeeded, so my tests still do that themselves.

@@ -1,6 +1,6 @@
 # Cypress E2E Automation – Real World App
 
-**Status:** Authentication module complete (10/10 workbook cases covered: 9 automated, 1 failing on [BUG-001](#defects-found)), plus 2 extra boundary tests.
+**Status:** Authentication module complete (10/10 workbook cases covered: 9 automated, 1 failing on [BUG-001](#defects-found)), plus 2 extra boundary tests. Registration module in progress: explored, 1 case N/A, 1 defect found ([BUG-002](#defects-found)).
 
 This folder contains my automated end-to-end tests for the **Cypress Real World App (RWA)**.
 The goal of this project is to convert manual QA test cases into reliable, maintainable Cypress tests, while learning Cypress and good test automation practices along the way.
@@ -75,6 +75,21 @@ I added these boundary tests after noticing the rule *"Password must contain at 
 | AUTH-EXTRA-001 | Password with 3 characters is rejected        | Boundary | ✅ Automated |
 | AUTH-EXTRA-002 | Password with exactly 4 characters is accepted | Boundary | ✅ Automated |
 
+### Registration
+
+Before writing any code I explored `/signup` and compared it with the workbook. The form has five fields: first name, last name, username, password and confirm password (no email field).
+
+| Test ID | Scenario                                   | Type                      | Status |
+|---------|--------------------------------------------|---------------------------|--------|
+| REG-001 | Register with valid user information       | Positive / Functional     | ⏳ Planned |
+| REG-002 | Register with empty first name             | Validation                | ⏳ Planned |
+| REG-003 | Register with empty last name              | Validation                | ⏳ Planned |
+| REG-004 | Register with invalid email                | Validation                | ➖ N/A: the sign-up form has no email field |
+| REG-005 | Register with existing username            | Negative / Business rule  | ❌ Failed – [BUG-002](#defects-found) (found manually) |
+| REG-006 | Register with mismatched passwords         | Validation                | ⏳ Planned |
+| REG-007 | Register with weak password                | Security / Validation     | ⏳ Planned |
+| REG-008 | Register with valid information and confirm | Positive / Functional    | ⏳ Planned |
+
 ## Defects found
 
 ### BUG-001: No validation message shown for empty password on Sign In page
@@ -96,6 +111,31 @@ I added these boundary tests after noticing the rule *"Password must contain at 
 **Actual result:** no validation message is shown below the Password field. The Sign In button is disabled with no explanation to the user.
 
 **Automation:** reproduced by test AUTH-005, which is marked `it.skip` with a reference to BUG-001 until the defect is fixed. The test asserts the *expected* behavior, so it was not changed to pass.
+
+### BUG-002: Sign-up accepts an existing username without error, and the new account cannot log in
+
+| Field       | Details |
+|-------------|---------|
+| Test case   | REG-005 |
+| Severity    | High (a second user record with an existing username is created, which breaks data integrity in a payment app; the user also gets no error and believes registration succeeded) |
+| Environment | Local (`http://localhost:3000`) |
+
+**Steps to reproduce**
+1. Open `http://localhost:3000/signup`
+2. Register with username `dupe_test1` and password `aaaa1234` (other fields filled in validly)
+3. Sign in with `dupe_test1` / `aaaa1234`, then sign out
+4. Open `http://localhost:3000/signup` again
+5. Register with the same username `dupe_test1` and a different password `bbbb1234`
+6. On the sign-in page, enter `dupe_test1` / `bbbb1234` and click Sign In
+
+**Expected result:** at step 5, registration is blocked and an error explains that the username is already taken.
+
+**Actual result:** at step 5, no error is shown and the user is redirected to `/signin` as if registration succeeded. At step 6, login fails with "Username or password is invalid".
+
+**Notes**
+- Confirmed in the database: a second user record with username `dupe_test1` was created at step 5.
+- The original account is not affected: `dupe_test1` / `aaaa1234` still signs in and out normally.
+- Follow-up: check the data isolation tests (HOME-007, SEC-001) with these two users, e.g. which account receives a transfer to `dupe_test1`.
 
 ## Approach
 
@@ -138,6 +178,10 @@ I added these boundary tests after noticing the rule *"Password must contain at 
 
 **Automation doesn't replace manual checks.** Cypress assertions retry until they pass, so they check the final state. If protected data flashed for half a second before the redirect, the test would likely still pass. I confirmed manually that nothing is shown, not even briefly.
 
+**Explore before automating.** For a new module I first check the real app against the workbook, because the workbook was written without knowing exactly what this RWA version contains. A case that cannot apply is marked **N/A with evidence** (REG-004: no email field on the form), not silently skipped.
+
+**Investigate a bug until it is precise.** For BUG-002 I repeated the scenario with fresh, controlled data (`dupe_test1`, two different passwords), checked whether the original account still worked, and verified in the database that a duplicate record was really created. Each finding changed the severity: from "confusing" to a data integrity problem (High).
+
 **Security awareness.** AUTH-002 (wrong username) and AUTH-003 (wrong password) both expect the **same** generic message: *"Username or password is invalid"*. A different message for each case would let an attacker discover which accounts exist (*user enumeration*), so the identical message is itself a security check.
 
 ## What I learned
@@ -159,7 +203,8 @@ I added these boundary tests after noticing the rule *"Password must contain at 
 
 ## Next steps
 
-- Start the next module from the workbook: Registration (REG-001 to REG-008)
+- Registration: automate REG-001 with a unique username per run (e.g. `testuser_${Date.now()}`), then the validation cases REG-002, 003, 006 and 007
+- Automate REG-005 to assert the expected behavior (it will fail until BUG-002 is fixed)
 - Review the `have.value` assertions in AUTH-002/003 so they target the `<input>` elements (`#username`, `#password`)
 - Re-enable AUTH-005 once BUG-001 is fixed
 - Reuse the team's existing custom commands from `cypress/support/commands.ts` instead of duplicating them: `cy.login(username, password)` for tests where login is only the setup step (e.g. AUTH-007 Logout), and `cy.getBySel(value)` for `data-test` selectors. I checked the existing code before writing my own. `cy.login()` already waits for the login API response (`cy.intercept` + `cy.wait`), but it does not assert that login succeeded, so my tests still do that themselves.
